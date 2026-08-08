@@ -1,0 +1,58 @@
+{
+  "name": "alexa-cli",
+  "version": "0.1.0",
+  "description": "LLM-first CLI for Alexa and smart home control",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "alexa-cli": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run build",
+    "start": "node dist/cli.js",
+    "cli": "node dist/cli.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "test:watch": "vitest",
+    "test:integration": "TEST_INTEGRATION=1 vitest run",
+    "test:e2e": "TEST_INTEGRATION=1 vitest run test/e2e.test.ts",
+    "test:e2e:devices": "TEST_INTEGRATION=1 vitest run test/e2e-devices.test.ts"
+  },
+  "keywords": [
+    "alexa",
+    "cli",
+    "smart-home",
+    "echo",
+    "automation",
+    "llm"
+  ],
+  "author": "m0nkmaster",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "alexa-cookie2": "^5.0.3",
+    "commander": "^12.0.0",
+    "undici": "^6.19.8",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/eslint__js": "^8.42.3",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.39.4",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

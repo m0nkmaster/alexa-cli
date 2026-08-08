@@ -1,44 +1,5 @@
-# Binaries
-bin/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary
-*.test
-
-# Output of go coverage
-*.out
-
-# Go workspace
-go.work
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# macOS
-.DS_Store
-
-# Distribution
+node_modules/
 dist/
-
-# Debug files
-debug_*.go
-test_*.go
-
-# Claude Code
-.claude/
-
-# Research and scripts (local development)
-research/
-scripts/
-
-# Local binaries (root level)
-/alexa
-/alexacli
-/poll-conversation
+.DS_Store
+coverage/
+*.log
