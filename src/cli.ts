@@ -35,13 +35,23 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-
 
 function resolveOutput(opts: Record<string, unknown>): OutputMode {
   const globalOpts = program.opts<GlobalOpts>();
+  const globalOutputSource = program.getOptionValueSource("output");
+  const globalOutput = globalOutputSource === "default" ? undefined : globalOpts.output;
+  const globalJson = wantsJson(
+    {
+      output: typeof globalOutput === "string" ? globalOutput : undefined,
+      json: globalOpts.json === true,
+      human: globalOpts.human === true,
+    },
+    "json"
+  );
   const json = wantsJson(
     {
       output: typeof opts.output === "string" ? opts.output : undefined,
       json: opts.json === true,
       human: opts.human === true,
     },
-    globalOpts.output ?? (globalOpts.json ? "json" : globalOpts.human ? "human" : "json")
+    globalJson ? "json" : "human"
   );
   const compact =
     opts.compact === true || (typeof opts.compact === "boolean" && opts.compact) || globalOpts.compact;

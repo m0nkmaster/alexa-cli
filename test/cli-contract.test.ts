@@ -56,4 +56,42 @@ describe("cli contract", () => {
     expect(out.ok).toBe(false);
     expect(out.code).toBe("USAGE_ERROR");
   });
+
+  it("keeps JSON as the default output contract", async () => {
+    const isolatedHome = mkdtempSync(join(tmpdir(), "alexa-cli-contract-"));
+    const { stdout, code } = await execCli(["auth", "status"], {
+      env: { HOME: isolatedHome, ALEXA_REFRESH_TOKEN: "" },
+    });
+    expect(code).toBe(0);
+    const out = JSON.parse(stdout.trim()) as Record<string, unknown>;
+    expect(out.ok).toBe(true);
+    expect(out.command).toBe("auth.status");
+  });
+
+  it.each([
+    ["after nested subcommand", ["auth", "status", "--human"]],
+    ["before nested subcommand chain", ["--human", "auth", "status"]],
+    ["between nested auth subcommands", ["auth", "--human", "status"]],
+  ])("accepts --human %s", async (_placement, args) => {
+    const isolatedHome = mkdtempSync(join(tmpdir(), "alexa-cli-contract-"));
+    const { stdout, code } = await execCli(args, {
+      env: { HOME: isolatedHome, ALEXA_REFRESH_TOKEN: "" },
+    });
+    expect(code).toBe(0);
+    expect(stdout.trim()).toBe("Not configured.");
+  });
+
+  it.each([
+    ["after nested subcommand", ["auth", "status", "--compact"]],
+    ["before nested subcommand chain", ["--compact", "auth", "status"]],
+    ["between nested auth subcommands", ["auth", "--compact", "status"]],
+  ])("accepts --compact %s", async (_placement, args) => {
+    const isolatedHome = mkdtempSync(join(tmpdir(), "alexa-cli-contract-"));
+    const { stdout, code } = await execCli(args, {
+      env: { HOME: isolatedHome, ALEXA_REFRESH_TOKEN: "" },
+    });
+    expect(code).toBe(0);
+    expect(stdout).toContain('{"ok":true,');
+    expect(stdout).not.toContain('\n  "ok"');
+  });
 });
