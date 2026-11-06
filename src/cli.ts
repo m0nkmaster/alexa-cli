@@ -462,6 +462,41 @@ program
   );
 
 program
+  .command("rename <old-name> <new-name>")
+  .description("Rename one smart home device")
+  .option("--endpoint-id <id>", "Select an exact endpoint when names are ambiguous")
+  .option("--dry-run", "Resolve and plan only, without renaming")
+  .action(async (oldName: string, newName: string, opts) =>
+    runCommand("rename", opts, async () => {
+      const oldNameTrimmed = oldName.trim();
+      const newNameTrimmed = newName.trim();
+      if (!oldNameTrimmed || !newNameTrimmed) {
+        throw new CliError("USAGE_ERROR", "Old and new names must not be blank.", {
+          exitCode: EXIT_CODES.USAGE,
+        });
+      }
+      const cfg = authConfigOrThrow();
+      const client = new AlexaClient(cfg);
+      const result = await client.renameAppliance(oldNameTrimmed, newNameTrimmed, {
+        endpointId: opts.endpointId,
+        dryRun: opts.dryRun,
+      });
+      if (!result) {
+        throw new CliError("NOT_FOUND", `Smart home device not found: "${oldNameTrimmed}".`, {
+          exitCode: EXIT_CODES.NOT_FOUND,
+          details: { query: oldNameTrimmed, endpointId: opts.endpointId },
+        });
+      }
+      return {
+        data: result,
+        humanLine: result.dryRun
+          ? `Would rename ${result.oldName} to ${result.newName}`
+          : `Renamed ${result.oldName} to ${result.newName}`,
+      };
+    })
+  );
+
+program
   .command("switch-group <group> <state>")
   .description("Turn devices on/off in a room group")
   .option("--all", "Control all appliances, not just lights")

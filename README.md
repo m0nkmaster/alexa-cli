@@ -116,6 +116,7 @@ alexa-cli auth logout
   - `announce [text]`
   - `command [text] --device <echo>`
 - **Smart home control**
+  - `rename <old-name> <new-name> [--endpoint-id <id>] [--dry-run]`
   - `switch <name> <on|off> [--device <echo>]`
   - `switch-group <group> <on|off> [--all] [--include-unresolved] [--dry-run]`
   - `switch-room <pattern> <on|off> [--dry-run]`
@@ -137,6 +138,7 @@ alexa-cli auth logout
 1. **Discover first**:
    - `devices`, `appliances`, `groups`, `group-members`
 2. **Dry-run before broad writes**:
+   - `rename "Old name" "New name" --dry-run`
    - `switch-group ... --dry-run`
    - `switch-room ... --dry-run`
    - `batch-control ... --dry-run`

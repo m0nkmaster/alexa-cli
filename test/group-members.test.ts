@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AlexaClient, AmbiguousMatchError } from "../src/client.js";
+import { useIsolatedDevicesCache } from "./test-cache.js";
 
 vi.mock("undici", () => ({
   fetch: vi.fn(),
@@ -45,6 +46,8 @@ function mockDevices(...names: string[]) {
 describe("resolveDevice matching", () => {
   let client: AlexaClient;
 
+  useIsolatedDevicesCache();
+
   beforeEach(() => {
     vi.mocked(fetch).mockReset();
     client = new AlexaClient({ refreshToken: "Atnr|test" });
@@ -64,6 +67,8 @@ describe("resolveDevice matching", () => {
 
 describe("listGroupMembers resolved vs unresolved", () => {
   let client: AlexaClient;
+
+  useIsolatedDevicesCache();
 
   beforeEach(() => {
     vi.mocked(fetch).mockReset();
@@ -126,6 +131,8 @@ describe("listGroupMembers resolved vs unresolved", () => {
 
 describe("controlAppliancesByGroup skips unresolved by default", () => {
   let client: AlexaClient;
+
+  useIsolatedDevicesCache();
 
   beforeEach(() => {
     vi.mocked(fetch).mockReset();

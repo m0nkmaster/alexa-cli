@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AlexaClient } from "../src/client.js";
+import { useIsolatedDevicesCache } from "./test-cache.js";
 
 vi.mock("undici", () => ({
   fetch: vi.fn(),
@@ -32,6 +33,8 @@ function mockRes(body: unknown, ok = true): {
 
 describe("AlexaClient", () => {
   let client: AlexaClient;
+
+  useIsolatedDevicesCache();
 
   beforeEach(() => {
     vi.mocked(fetch).mockReset();

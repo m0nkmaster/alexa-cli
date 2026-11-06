@@ -57,6 +57,20 @@ describe("cli contract", () => {
     expect(out.code).toBe("USAGE_ERROR");
   });
 
+  it("exposes rename in --help", async () => {
+    const { stdout, code } = await execCli(["--help"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("rename [options] <old-name> <new-name>");
+  });
+
+  it("rejects blank rename names before authentication", async () => {
+    const { stdout, code } = await execCli(["rename", "Old name", " "]);
+    expect(code).toBe(2);
+    const out = JSON.parse(stdout.trim()) as Record<string, unknown>;
+    expect(out.code).toBe("USAGE_ERROR");
+    expect(out.command).toBe("rename");
+  });
+
   it("keeps JSON as the default output contract", async () => {
     const isolatedHome = mkdtempSync(join(tmpdir(), "alexa-cli-contract-"));
     const { stdout, code } = await execCli(["auth", "status"], {

@@ -1,5 +1,11 @@
 import { getConfig, type Domain } from "./config.js";
 import { authenticate, type AlexaCredentials } from "./auth.js";
+import {
+  clearSmartHomeCache,
+  DEVICES_CACHE_TTL_MS,
+  readAppliancesCache,
+  writeAppliancesCache,
+} from "./devices-cache.js";
 import { fetch } from "undici";
 import {
   AmbiguousMatchError,
@@ -78,6 +84,13 @@ export interface GroupControlResult {
   planned?: ControlTarget[];
 }
 
+export interface RenameResult {
+  endpointId: string;
+  oldName: string;
+  newName: string;
+  dryRun: boolean;
+}
+
 export interface AudioGroup {
   id: string;
   name: string;
@@ -93,6 +106,7 @@ export class AlexaClient {
   private creds: AlexaCredentials | null = null;
   private readonly refreshToken: string;
   private readonly domain: Domain;
+  private appliancesCache: { appliances: Appliance[]; expiresAt: number } | null = null;
 
   constructor(options: ClientOptions) {
     this.refreshToken = options.refreshToken;
@@ -670,7 +684,17 @@ export class AlexaClient {
     });
   }
 
-  async listAppliances(): Promise<Appliance[]> {
+  private normalizeAppliances(appliances: Appliance[]): Appliance[] {
+    return appliances.map((a) => ({
+      entityId: a.entityId,
+      endpointId: a.endpointId,
+      friendlyName: a.friendlyName,
+      isReachable: a.isReachable,
+      ...(a.capabilities ? { capabilities: [...a.capabilities] } : {}),
+    }));
+  }
+
+  private async fetchAppliancesFromApi(): Promise<Appliance[]> {
     const r = await this.fetchSmarthomeV2Endpoints();
     const rawLayoutKeys = await this.fetchLayouts();
     const layoutIds = rawLayoutKeys
@@ -762,6 +786,29 @@ export class AlexaClient {
     }));
   }
 
+  private async loadAppliances(): Promise<Appliance[]> {
+    if (this.appliancesCache !== null && Date.now() < this.appliancesCache.expiresAt) {
+      return this.appliancesCache.appliances;
+    }
+
+    const disk = readAppliancesCache(this.domain);
+    if (disk) {
+      const appliances = this.normalizeAppliances(disk.appliances);
+      this.appliancesCache = { appliances, expiresAt: disk.expiresAt };
+      return appliances;
+    }
+
+    const appliances = this.normalizeAppliances(await this.fetchAppliancesFromApi());
+    const expiresAt = Date.now() + DEVICES_CACHE_TTL_MS;
+    this.appliancesCache = { appliances, expiresAt };
+    writeAppliancesCache(this.domain, appliances, expiresAt);
+    return appliances;
+  }
+
+  async listAppliances(): Promise<Appliance[]> {
+    return this.loadAppliances();
+  }
+
   /**
    * Filter out non-device endpoints from the raw layout list.
    * Removes Fire TV apps (package names), Alexa scenes, Echo devices,
@@ -829,6 +876,71 @@ export class AlexaClient {
       );
     }
     return null;
+  }
+
+  /** Rename one smart-home endpoint by friendly name, optionally disambiguated by endpoint ID. */
+  async renameAppliance(
+    oldName: string,
+    newName: string,
+    options?: { endpointId?: string; dryRun?: boolean }
+  ): Promise<RenameResult | null> {
+    const oldNameTrimmed = oldName.trim();
+    const newNameTrimmed = newName.trim();
+    if (!oldNameTrimmed || !newNameTrimmed) throw new Error("Device names must not be blank");
+
+    const appliances = await this.listAppliances();
+    const candidates = options?.endpointId
+      ? appliances.filter((appliance) => appliance.endpointId === options.endpointId)
+      : appliances;
+    const appliance = resolveUniqueMatch(
+      candidates,
+      oldNameTrimmed,
+      (candidate) => candidate.friendlyName ?? ""
+    );
+    if (!appliance?.endpointId) return null;
+
+    const result: RenameResult = {
+      endpointId: appliance.endpointId,
+      oldName: appliance.friendlyName,
+      newName: newNameTrimmed,
+      dryRun: Boolean(options?.dryRun),
+    };
+    if (options?.dryRun) return result;
+
+    const response = (await this.postGraphql({
+      operationName: "RenameEndpointFriendlyName",
+      variables: {
+        input: { endpointId: appliance.endpointId, friendlyName: newNameTrimmed },
+      },
+      query: `mutation RenameEndpointFriendlyName($input: SetEndpointFriendlyNameInput!) {
+  setEndpointFriendlyName(input: $input) {
+    endpoint { id friendlyNameObject { value { text } } }
+  }
+}`,
+    })) as {
+      data?: {
+        setEndpointFriendlyName?: {
+          endpoint?: { id?: string; friendlyNameObject?: { value?: { text?: string } } };
+        };
+      };
+      errors?: Array<{ message?: string }>;
+    };
+    if (response.errors?.length) {
+      throw new Error(
+        `GraphQL error: ${response.errors.map((error) => error.message ?? "Unknown error").join("; ")}`
+      );
+    }
+    const renamed = response.data?.setEndpointFriendlyName?.endpoint;
+    if (
+      renamed?.id !== appliance.endpointId ||
+      renamed.friendlyNameObject?.value?.text !== newNameTrimmed
+    ) {
+      throw new Error("Rename failed: GraphQL response did not confirm the endpoint and friendly name");
+    }
+
+    this.appliancesCache = null;
+    clearSmartHomeCache(this.domain);
+    return result;
   }
 
   /**
